@@ -10,8 +10,8 @@ Este proyecto simula un ecosistema simple con plantas, herbívoros y carnívoros
 
 ## Estructura del Proyecto
 
-- `ecosystem_sequential.c`: Código para la simulación secuencial del ecosistema.
-- `ecosystem_parallel.c`: Código para la simulación paralela del ecosistema utilizando OpenMP.
+- `secuencial.c`: Código para la simulación secuencial del ecosistema.
+- `paralelo.c`: Código para la simulación paralela del ecosistema utilizando OpenMP.
 - `results_secuencial.txt`: Archivo de salida que muestra el estado del ecosistema en varios puntos del tiempo para la simulación secuencial.
 - `results_parallel.txt`: Archivo de salida que muestra el estado del ecosistema en varios puntos del tiempo para la simulación paralela.
 
@@ -24,3 +24,4 @@ Para compilar y ejecutar la simulación secuencial:
 ```bash
 gcc ecosystem_sequential.c -o ecosystem_sequential
 ./ecosystem_sequential
+
