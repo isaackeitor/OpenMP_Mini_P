@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <time.h>
 #include <omp.h>
+#include <string.h> // Incluir esta cabecera para usar strcat
 
 #define GRID_SIZE 10
 #define INITIAL_PLANTS 150
@@ -18,7 +19,7 @@ Cell grid[GRID_SIZE][GRID_SIZE];
 Cell new_grid[GRID_SIZE][GRID_SIZE];
 
 void initialize_ecosystem() {
-    // Inicializa la cuadrícula y distribuye las especies iniciales
+    #pragma omp parallel for collapse(2)
     for (int i = 0; i < GRID_SIZE; i++) {
         for (int j = 0; j < GRID_SIZE; j++) {
             grid[i][j].plants = 0;
@@ -27,28 +28,36 @@ void initialize_ecosystem() {
         }
     }
 
-    // Añadir plantas, herbívoros y carnívoros aleatoriamente
-    for (int i = 0; i < INITIAL_PLANTS; i++) {
-        int x = rand() % GRID_SIZE;
-        int y = rand() % GRID_SIZE;
-        grid[x][y].plants++;
-    }
+    unsigned int seed = (unsigned int)time(NULL);
+    #pragma omp parallel
+    {
+        unsigned int thread_seed = seed + omp_get_thread_num();
 
-    for (int i = 0; i < INITIAL_HERBIVORES; i++) {
-        int x = rand() % GRID_SIZE;
-        int y = rand() % GRID_SIZE;
-        grid[x][y].herbivores++;
-    }
-
-    for (int i = 0; i < INITIAL_CARNIVORES; i++) {
-        int x = rand() % GRID_SIZE;
-        int y = rand() % GRID_SIZE;
-        grid[x][y].carnivores++;
+        #pragma omp for
+        for (int i = 0; i < INITIAL_PLANTS; i++) {
+            int x = rand_r(&thread_seed) % GRID_SIZE;
+            int y = rand_r(&thread_seed) % GRID_SIZE;
+            #pragma omp atomic
+            grid[x][y].plants++;
+        }
+        #pragma omp for
+        for (int i = 0; i < INITIAL_HERBIVORES; i++) {
+            int x = rand_r(&thread_seed) % GRID_SIZE;
+            int y = rand_r(&thread_seed) % GRID_SIZE;
+            #pragma omp atomic
+            grid[x][y].herbivores++;
+        }
+        #pragma omp for
+        for (int i = 0; i < INITIAL_CARNIVORES; i++) {
+            int x = rand_r(&thread_seed) % GRID_SIZE;
+            int y = rand_r(&thread_seed) % GRID_SIZE;
+            #pragma omp atomic
+            grid[x][y].carnivores++;
+        }
     }
 }
 
 void simulate_tick() {
-    // Copiar el estado actual de la cuadrícula a la nueva cuadrícula
     #pragma omp parallel for collapse(2)
     for (int i = 0; i < GRID_SIZE; i++) {
         for (int j = 0; j < GRID_SIZE; j++) {
@@ -56,8 +65,7 @@ void simulate_tick() {
         }
     }
 
-    // Actualizar plantas
-    #pragma omp parallel for collapse(2)
+    #pragma omp parallel for collapse(2) schedule(auto)
     for (int i = 0; i < GRID_SIZE; i++) {
         for (int j = 0; j < GRID_SIZE; j++) {
             if (grid[i][j].plants > 0) {
@@ -71,8 +79,7 @@ void simulate_tick() {
         }
     }
 
-    // Actualizar herbívoros
-    #pragma omp parallel for collapse(2)
+    #pragma omp parallel for collapse(2) schedule(auto)
     for (int i = 0; i < GRID_SIZE; i++) {
         for (int j = 0; j < GRID_SIZE; j++) {
             if (grid[i][j].herbivores > 0) {
@@ -91,8 +98,7 @@ void simulate_tick() {
         }
     }
 
-    // Actualizar carnívoros
-    #pragma omp parallel for collapse(2)
+    #pragma omp parallel for collapse(2) schedule(auto)
     for (int i = 0; i < GRID_SIZE; i++) {
         for (int j = 0; j < GRID_SIZE; j++) {
             if (grid[i][j].carnivores > 0) {
@@ -111,7 +117,6 @@ void simulate_tick() {
         }
     }
 
-    // Copiar el estado actualizado de la nueva cuadrícula de vuelta a la cuadrícula original
     #pragma omp parallel for collapse(2)
     for (int i = 0; i < GRID_SIZE; i++) {
         for (int j = 0; j < GRID_SIZE; j++) {
@@ -142,7 +147,7 @@ int main() {
     srand(time(NULL));
     initialize_ecosystem();
 
-    int ticks = 20;
+    int ticks = 10;
     double start, end;
     double cpu_time_used;
 

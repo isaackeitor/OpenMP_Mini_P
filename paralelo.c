@@ -17,7 +17,7 @@ typedef struct {
 Cell grid[GRID_SIZE][GRID_SIZE];
 
 void initialize_ecosystem() {
-    // Inicializa la cuadrícula y distribuye las especies iniciales
+    #pragma omp parallel for collapse(2)
     for (int i = 0; i < GRID_SIZE; i++) {
         for (int j = 0; j < GRID_SIZE; j++) {
             grid[i][j].plants = 0;
@@ -26,23 +26,32 @@ void initialize_ecosystem() {
         }
     }
 
-    // Añadir plantas, herbívoros y carnívoros aleatoriamente
-    for (int i = 0; i < INITIAL_PLANTS; i++) {
-        int x = rand() % GRID_SIZE;
-        int y = rand() % GRID_SIZE;
-        grid[x][y].plants++;
-    }
+    unsigned int seed = (unsigned int)time(NULL);
+    #pragma omp parallel
+    {
+        unsigned int thread_seed = seed + omp_get_thread_num();
 
-    for (int i = 0; i < INITIAL_HERBIVORES; i++) {
-        int x = rand() % GRID_SIZE;
-        int y = rand() % GRID_SIZE;
-        grid[x][y].herbivores++;
-    }
-
-    for (int i = 0; i < INITIAL_CARNIVORES; i++) {
-        int x = rand() % GRID_SIZE;
-        int y = rand() % GRID_SIZE;
-        grid[x][y].carnivores++;
+        #pragma omp for
+        for (int i = 0; i < INITIAL_PLANTS; i++) {
+            int x = rand_r(&thread_seed) % GRID_SIZE;
+            int y = rand_r(&thread_seed) % GRID_SIZE;
+            #pragma omp atomic
+            grid[x][y].plants++;
+        }
+        #pragma omp for
+        for (int i = 0; i < INITIAL_HERBIVORES; i++) {
+            int x = rand_r(&thread_seed) % GRID_SIZE;
+            int y = rand_r(&thread_seed) % GRID_SIZE;
+            #pragma omp atomic
+            grid[x][y].herbivores++;
+        }
+        #pragma omp for
+        for (int i = 0; i < INITIAL_CARNIVORES; i++) {
+            int x = rand_r(&thread_seed) % GRID_SIZE;
+            int y = rand_r(&thread_seed) % GRID_SIZE;
+            #pragma omp atomic
+            grid[x][y].carnivores++;
+        }
     }
 }
 
@@ -109,7 +118,7 @@ int main() {
     srand(time(NULL));
     initialize_ecosystem();
 
-    int ticks = 20;
+    int ticks = 10;
     double start, end;
     double cpu_time_used;
 
