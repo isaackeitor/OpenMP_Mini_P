@@ -27,33 +27,59 @@ void initialize_ecosystem() {
         }
     }
 
-    // Añadir plantas, herbívoros y carnívoros aleatoriamente
+    // Añadir plantas aleatoriamente sin permitir múltiples plantas en la misma casilla
     #pragma omp parallel
     {
         unsigned int thread_seed = (unsigned int)time(NULL) + omp_get_thread_num();
 
         #pragma omp for
         for (int i = 0; i < INITIAL_PLANTS; i++) {
-            int x = rand_r(&thread_seed) % GRID_SIZE;
-            int y = rand_r(&thread_seed) % GRID_SIZE;
-            #pragma omp atomic
-            grid[x][y].plants++;
+            int x, y;
+            do {
+                x = rand_r(&thread_seed) % GRID_SIZE;
+                y = rand_r(&thread_seed) % GRID_SIZE;
+            } while (grid[x][y].plants > 0);
+
+            #pragma omp critical
+            {
+                if (grid[x][y].plants == 0) {
+                    grid[x][y].plants = 1;
+                }
+            }
         }
 
+        // Añadir herbívoros aleatoriamente sin permitir múltiples herbívoros en la misma casilla
         #pragma omp for
         for (int i = 0; i < INITIAL_HERBIVORES; i++) {
-            int x = rand_r(&thread_seed) % GRID_SIZE;
-            int y = rand_r(&thread_seed) % GRID_SIZE;
-            #pragma omp atomic
-            grid[x][y].herbivores++;
+            int x, y;
+            do {
+                x = rand_r(&thread_seed) % GRID_SIZE;
+                y = rand_r(&thread_seed) % GRID_SIZE;
+            } while (grid[x][y].herbivores > 0);
+
+            #pragma omp critical
+            {
+                if (grid[x][y].herbivores == 0) {
+                    grid[x][y].herbivores = 1;
+                }
+            }
         }
 
+        // Añadir carnívoros aleatoriamente sin permitir múltiples carnívoros en la misma casilla
         #pragma omp for
         for (int i = 0; i < INITIAL_CARNIVORES; i++) {
-            int x = rand_r(&thread_seed) % GRID_SIZE;
-            int y = rand_r(&thread_seed) % GRID_SIZE;
-            #pragma omp atomic
-            grid[x][y].carnivores++;
+            int x, y;
+            do {
+                x = rand_r(&thread_seed) % GRID_SIZE;
+                y = rand_r(&thread_seed) % GRID_SIZE;
+            } while (grid[x][y].carnivores > 0);
+
+            #pragma omp critical
+            {
+                if (grid[x][y].carnivores == 0) {
+                    grid[x][y].carnivores = 1;
+                }
+            }
         }
     }
 }
@@ -67,14 +93,18 @@ void simulate_tick() {
             for (int j = 0; j < GRID_SIZE; j++) {
                 // Actualizar plantas
                 if (grid[i][j].plants > 0) {
-                    // Reducir la probabilidad de reproducción al 10%
-                    if ((rand_r(&thread_seed) % 100) < 10) {
+                    
+                    if ((rand_r(&thread_seed) % 100) < 30) {
                         int new_i = (i + rand_r(&thread_seed) % 3 - 1 + GRID_SIZE) % GRID_SIZE;
                         int new_j = (j + rand_r(&thread_seed) % 3 - 1 + GRID_SIZE) % GRID_SIZE;
-                        #pragma omp atomic
-                        grid[new_i][new_j].plants++;
+                        #pragma omp critical
+                        {
+                            if (grid[new_i][new_j].plants == 0) {
+                                grid[new_i][new_j].plants++;
+                            }
+                        }
                     }
-                    
+
                     // Introducir una probabilidad de muerte del 5% para las plantas
                     if ((rand_r(&thread_seed) % 100) < 5) {
                         #pragma omp atomic
@@ -84,7 +114,7 @@ void simulate_tick() {
 
                 // Actualizar herbívoros
                 if (grid[i][j].herbivores > 0) {
-                    // Aumentar la eficacia de los herbívoros para consumir plantas
+                    // Se aumenta la eficiencia de los herbívoros para consumir plantas
                     int plants_eaten = (grid[i][j].plants >= 2) ? 2 : grid[i][j].plants;
                     #pragma omp atomic
                     grid[i][j].plants -= plants_eaten;
@@ -93,10 +123,13 @@ void simulate_tick() {
                         if ((rand_r(&thread_seed) % 100) < 30) {
                             int new_i = (i + rand_r(&thread_seed) % 3 - 1 + GRID_SIZE) % GRID_SIZE;
                             int new_j = (j + rand_r(&thread_seed) % 3 - 1 + GRID_SIZE) % GRID_SIZE;
-                            #pragma omp atomic
-                            grid[new_i][new_j].herbivores++;
-                            #pragma omp atomic
-                            grid[i][j].herbivores--;
+                            #pragma omp critical
+                            {
+                                if (grid[new_i][new_j].herbivores == 0) {
+                                    grid[new_i][new_j].herbivores++;
+                                    grid[i][j].herbivores--;
+                                }
+                            }
                         }
                     }
                 }
@@ -110,10 +143,13 @@ void simulate_tick() {
                         if ((rand_r(&thread_seed) % 100) < 70) {
                             int new_i = (i + rand_r(&thread_seed) % 3 - 1 + GRID_SIZE) % GRID_SIZE;
                             int new_j = (j + rand_r(&thread_seed) % 3 - 1 + GRID_SIZE) % GRID_SIZE;
-                            #pragma omp atomic
-                            grid[new_i][new_j].carnivores++;
-                            #pragma omp atomic
-                            grid[i][j].carnivores--;
+                            #pragma omp critical
+                            {
+                                if (grid[new_i][new_j].carnivores == 0) {
+                                    grid[new_i][new_j].carnivores++;
+                                    grid[i][j].carnivores--;
+                                }
+                            }
                         }
                     }
                 }
@@ -174,7 +210,7 @@ int main() {
     srand(time(NULL));
     initialize_ecosystem();
 
-    int ticks = 2000;
+    int ticks = 3000;
     double start, end;
 
     FILE *file = fopen("resultados_paralelo_optimizado.txt", "w");
